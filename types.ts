@@ -24,4 +24,5 @@ export interface AiAnalysisResult {
   itemName?: string;
   price?: number;
   eanCode?: string;
+  confidence?: 'high' | 'low';
 }

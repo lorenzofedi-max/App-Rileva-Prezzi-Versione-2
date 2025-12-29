@@ -1,13 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AiAnalysisResult } from "../types.ts";
 
-export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnalysisResult> => {
+/**
+ * Converte una stringa in Title Case (Prima lettera maiuscola, altre minuscole)
+ */
+const toTitleCase = (str: string): string => {
+  if (!str) return "";
+  return str.trim().charAt(0).toUpperCase() + str.trim().slice(1).toLowerCase();
+};
+
+export const analyzePriceTagImage = async (base64Image: string, isLive: boolean = false): Promise<AiAnalysisResult> => {
   try {
-    // Inizializzazione rigorosa come da documentazione
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Estrazione pulita dei dati base64
-    const base64Data = base64Image.split(',')[1] || base64Image;
+    // Pulizia base64
+    const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -20,40 +27,40 @@ export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnaly
             }
           },
           {
-            text: "Sei un esperto di botanica e vendita al dettaglio. Analizza questa etichetta di prezzo o il cartellino di questa pianta/fiore. Estrai i seguenti dati in formato JSON: itemName (il nome della pianta o del mazzo di fiori), price (il prezzo numerico, usa il punto per i decimali), eanCode (il codice a barre EAN-13 o EAN-8 se chiaramente visibile)."
+            text: isLive 
+              ? "ESTRAZIONE RAPIDA ETICHETTA. Trova itemName, price (solo numero), eanCode. IMPORTANTE: Restituisci itemName con la PRIMA LETTERA MAIUSCOLA e le altre minuscole (esempio: 'Begonia'). Se i dati sono incerti, restituisci JSON vuoto {}."
+              : "Analizza questa etichetta botanica. Estrai itemName (Title Case: Es. 'Orchidea phalaenopsis'), price (numero), eanCode in JSON."
           }
         ]
       },
       config: {
         responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            itemName: { 
-              type: Type.STRING,
-              description: "Il nome comune o scientifico della pianta."
-            },
-            price: { 
-              type: Type.NUMBER,
-              description: "Il prezzo dell'articolo come numero decimale."
-            },
-            eanCode: { 
-              type: Type.STRING,
-              description: "Il codice EAN a 8 o 13 cifre."
-            }
-          },
-          required: ["itemName", "price"]
+            itemName: { type: Type.STRING },
+            price: { type: Type.NUMBER },
+            eanCode: { type: Type.STRING }
+          }
         }
       }
     });
 
     const text = response.text;
     if (text) {
-      return JSON.parse(text) as AiAnalysisResult;
+      const parsed = JSON.parse(text) as AiAnalysisResult;
+      // Validazione e formattazione extra lato client per sicurezza
+      if (parsed.itemName) {
+        parsed.itemName = toTitleCase(parsed.itemName);
+      }
+      
+      if (!parsed.itemName && !parsed.price) return {};
+      return parsed;
     }
-    throw new Error("Nessuna risposta testuale ricevuta dal modello.");
+    return {};
   } catch (error) {
-    console.error("Gemini Analysis Error Details:", error);
-    throw error;
+    console.error("Gemini Error:", error);
+    return {};
   }
 };

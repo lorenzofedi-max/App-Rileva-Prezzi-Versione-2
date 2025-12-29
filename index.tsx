@@ -2,6 +2,15 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 
+// Registrazione Service Worker per PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('Service Worker registrato con successo', reg))
+      .catch(err => console.warn('Errore registrazione Service Worker', err));
+  });
+}
+
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {

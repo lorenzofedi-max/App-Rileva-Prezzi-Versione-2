@@ -8,22 +8,26 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input: React.FC<InputProps> = ({ label, list, options, error, className, ...props }) => {
-  // Generate a unique ID for the datalist if options are provided
-  // This ensures the input is correctly linked to the datalist even if no explicit 'list' prop is passed
   const generatedId = useId();
   const listId = list || (options ? `datalist-${generatedId}` : undefined);
 
   return (
-    <div className={`flex flex-col ${className || ''}`}>
-      <label className="text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <input
-        {...props}
-        list={listId}
-        autoComplete="off" // Disable browser history to prioritize datalist options
-        className={`w-full p-3 rounded-lg border focus:ring-2 focus:ring-brand-500 outline-none transition-all ${
-          error ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-brand-500'
-        }`}
-      />
+    <div className={`flex flex-col space-y-2 ${className || ''}`}>
+      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+        {label}
+      </label>
+      <div className="relative group">
+        <input
+          {...props}
+          list={listId}
+          autoComplete="off"
+          className={`w-full h-14 px-5 rounded-xl border-2 bg-white text-slate-900 text-sm font-bold transition-all duration-300 outline-none
+            ${error 
+              ? 'border-rose-400 bg-rose-50 text-rose-900' 
+              : 'border-slate-100 focus:border-brand-600 hover:border-slate-200 focus:shadow-md'
+            }`}
+        />
+      </div>
       {options && listId && (
         <datalist id={listId}>
           {options.map((opt) => (
@@ -31,7 +35,7 @@ export const Input: React.FC<InputProps> = ({ label, list, options, error, class
           ))}
         </datalist>
       )}
-      {error && <span className="text-xs text-red-500 mt-1">{error}</span>}
+      {error && <span className="text-[10px] text-rose-600 font-bold px-2">{error}</span>}
     </div>
   );
 };
