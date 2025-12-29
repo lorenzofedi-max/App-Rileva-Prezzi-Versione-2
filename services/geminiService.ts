@@ -1,17 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AiAnalysisResult } from "../types.ts";
 
-// Utilizziamo una funzione per ottenere l'istanza AI solo quando serve,
-// garantendo che process.env sia popolato correttamente dal sistema.
-const getAiInstance = () => {
-  const apiKey = (window as any).process?.env?.API_KEY || "";
-  return new GoogleGenAI({ apiKey });
-};
-
 export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnalysisResult> => {
   try {
-    const ai = getAiInstance();
-    const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
+    // Inizializzazione rigorosa come da documentazione
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    // Estrazione pulita dei dati base64
+    const base64Data = base64Image.split(',')[1] || base64Image;
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -20,11 +16,11 @@ export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnaly
           {
             inlineData: {
               mimeType: "image/jpeg",
-              data: cleanBase64
+              data: base64Data
             }
           },
           {
-            text: "Analizza questa etichetta di prezzo di una pianta o mazzo di fiori. Estrai in JSON: itemName (nome prodotto), price (solo numero), eanCode (codice a barre se presente)."
+            text: "Sei un esperto di botanica e vendita al dettaglio. Analizza questa etichetta di prezzo o il cartellino di questa pianta/fiore. Estrai i seguenti dati in formato JSON: itemName (il nome della pianta o del mazzo di fiori), price (il prezzo numerico, usa il punto per i decimali), eanCode (il codice a barre EAN-13 o EAN-8 se chiaramente visibile)."
           }
         ]
       },
@@ -33,20 +29,31 @@ export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnaly
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            itemName: { type: Type.STRING },
-            price: { type: Type.NUMBER },
-            eanCode: { type: Type.STRING }
-          }
+            itemName: { 
+              type: Type.STRING,
+              description: "Il nome comune o scientifico della pianta."
+            },
+            price: { 
+              type: Type.NUMBER,
+              description: "Il prezzo dell'articolo come numero decimale."
+            },
+            eanCode: { 
+              type: Type.STRING,
+              description: "Il codice EAN a 8 o 13 cifre."
+            }
+          },
+          required: ["itemName", "price"]
         }
       }
     });
 
-    if (response.text) {
-      return JSON.parse(response.text) as AiAnalysisResult;
+    const text = response.text;
+    if (text) {
+      return JSON.parse(text) as AiAnalysisResult;
     }
-    throw new Error("Risposta vuota dall'AI");
+    throw new Error("Nessuna risposta testuale ricevuta dal modello.");
   } catch (error) {
-    console.error("Gemini Analysis Error:", error);
+    console.error("Gemini Analysis Error Details:", error);
     throw error;
   }
 };
