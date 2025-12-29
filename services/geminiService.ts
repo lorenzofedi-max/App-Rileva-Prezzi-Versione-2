@@ -6,14 +6,13 @@ import { AiAnalysisResult } from "../types.ts";
  */
 const toTitleCase = (str: string): string => {
   if (!str) return "";
-  return str.trim().charAt(0).toUpperCase() + str.trim().slice(1).toLowerCase();
+  const trimmed = str.trim();
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 };
 
 export const analyzePriceTagImage = async (base64Image: string, isLive: boolean = false): Promise<AiAnalysisResult> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    // Pulizia base64
     const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
 
     const response = await ai.models.generateContent({
@@ -27,9 +26,7 @@ export const analyzePriceTagImage = async (base64Image: string, isLive: boolean 
             }
           },
           {
-            text: isLive 
-              ? "ESTRAZIONE RAPIDA ETICHETTA. Trova itemName, price (solo numero), eanCode. IMPORTANTE: Restituisci itemName con la PRIMA LETTERA MAIUSCOLA e le altre minuscole (esempio: 'Begonia'). Se i dati sono incerti, restituisci JSON vuoto {}."
-              : "Analizza questa etichetta botanica. Estrai itemName (Title Case: Es. 'Orchidea phalaenopsis'), price (numero), eanCode in JSON."
+            text: "OCR ETICHETTA PREZZO. Estrai in JSON: itemName (Nome pianta/fiore, Title Case), price (solo numero), eanCode (13 cifre). Se mancano dati, lascia null o stringa vuota."
           }
         ]
       },
@@ -50,12 +47,7 @@ export const analyzePriceTagImage = async (base64Image: string, isLive: boolean 
     const text = response.text;
     if (text) {
       const parsed = JSON.parse(text) as AiAnalysisResult;
-      // Validazione e formattazione extra lato client per sicurezza
-      if (parsed.itemName) {
-        parsed.itemName = toTitleCase(parsed.itemName);
-      }
-      
-      if (!parsed.itemName && !parsed.price) return {};
+      if (parsed.itemName) parsed.itemName = toTitleCase(parsed.itemName);
       return parsed;
     }
     return {};
