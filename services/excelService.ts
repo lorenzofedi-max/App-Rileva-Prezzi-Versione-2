@@ -14,28 +14,36 @@ export interface AppDataLists {
 
 export const loadDataFromExcel = async (): Promise<AppDataLists | null> => {
   try {
-    const response = await fetch('./database.xlsx');
+    // Cerchiamo il file database.xlsx nella root
+    const response = await fetch('./database.xlsx', { cache: 'no-cache' });
     
     if (!response.ok) {
-      console.log('Database Excel file not found, using defaults.');
+      console.warn('File database.xlsx non trovato sul server. Caricamento defaults...');
       return null;
     }
 
     const arrayBuffer = await response.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    
+    if (!workbook.SheetNames.length) return null;
+
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
     const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
+
+    if (!jsonData.length) return null;
 
     const extractColumn = (key: string): string[] => {
       const list = jsonData
         .map(row => row[key])
         .filter(item => item !== undefined && item !== null && String(item).trim() !== '')
         .map(item => String(item).trim());
+      
+      // Rimuove duplicati e ordina alfabeticamente/numericamente
       return [...new Set(list)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     };
 
-    // Extract Supplier Rules (mapping RadiceEAN to NomeFornitore)
+    // Estrae le regole Fornitore (RadiceEAN -> NomeFornitore)
     const supplierRules: SupplierRule[] = jsonData
       .filter(row => row['RadiceEAN'] && row['NomeFornitore'])
       .map(row => ({
@@ -43,8 +51,10 @@ export const loadDataFromExcel = async (): Promise<AppDataLists | null> => {
         supplier: String(row['NomeFornitore']).trim()
       }));
 
-    // Unique rules by root
-    const uniqueRules = Array.from(new Map(supplierRules.map(item => [item.root, item])).values());
+    // Rende uniche le regole per radice
+    const uniqueRulesMap = new Map();
+    supplierRules.forEach(rule => uniqueRulesMap.set(rule.root, rule));
+    const uniqueRules = Array.from(uniqueRulesMap.values());
 
     return {
       chains: extractColumn('Catene'),
@@ -58,7 +68,7 @@ export const loadDataFromExcel = async (): Promise<AppDataLists | null> => {
     };
 
   } catch (error) {
-    console.error("Error loading Excel database:", error);
+    console.error("Errore critico durante il caricamento dell'Excel:", error);
     return null;
   }
 };
