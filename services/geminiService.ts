@@ -1,15 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { AiAnalysisResult } from "../types";
+import { AiAnalysisResult } from "../types.ts";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnalysisResult> => {
   try {
-    // Remove data URL prefix if present
     const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: {
         parts: [
           {
@@ -19,7 +18,7 @@ export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnaly
             }
           },
           {
-            text: "Analyze this image of a shelf price tag or product label. Extract the following information: 1. The specific product name (e.g. 'Orchidea Phalaenopsis', 'Rose Bouquet'). 2. The price as a number. 3. The Barcode/EAN numbers if clearly visible. If you cannot find a field, leave it null."
+            text: "Analizza questa etichetta di prezzo. Estrai: 1. Nome specifico prodotto (es. 'Orchidea Phalaenopsis'). 2. Prezzo (numero). 3. Codice EAN/Barcode se visibile."
           }
         ]
       },
@@ -28,9 +27,9 @@ export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnaly
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            itemName: { type: Type.STRING, description: "Name of the plant or flower" },
-            price: { type: Type.NUMBER, description: "Price value" },
-            eanCode: { type: Type.STRING, description: "EAN or Barcode numbers" }
+            itemName: { type: Type.STRING },
+            price: { type: Type.NUMBER },
+            eanCode: { type: Type.STRING }
           }
         }
       }
@@ -39,7 +38,7 @@ export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnaly
     if (response.text) {
       return JSON.parse(response.text) as AiAnalysisResult;
     }
-    throw new Error("No response from AI");
+    throw new Error("Nessuna risposta dall'AI");
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
     throw error;
