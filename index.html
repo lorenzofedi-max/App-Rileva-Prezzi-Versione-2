@@ -7,19 +7,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
+      // Inizializzazione globale sicura
+      window.process = { env: { API_KEY: "" } };
+      window.global = window;
+      
       tailwind.config = {
         theme: {
           extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
+            fontFamily: { sans: ['Inter', 'sans-serif'] },
             colors: {
               brand: {
-                50: '#effef7',
-                100: '#dafeef',
-                500: '#10b981',
-                600: '#059669',
-                700: '#047857',
+                50: '#effef7', 100: '#dafeef', 500: '#10b981', 600: '#059669', 700: '#047857',
               }
             }
           }
@@ -42,17 +40,11 @@
 }
 </script>
     <style>
-      body { background-color: #f9fafb; margin: 0; }
+      body { background-color: #f9fafb; margin: 0; overflow-x: hidden; }
       #root:empty::before {
-        content: "Caricamento FloraTrack AI...";
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        font-family: 'Inter', sans-serif;
-        color: #10b981;
-        font-weight: 600;
-        background: white;
+        content: "Caricamento FloraTrack...";
+        display: flex; justify-content: center; align-items: center;
+        height: 100vh; font-family: sans-serif; color: #10b981; font-weight: 600;
       }
     </style>
   </head>
