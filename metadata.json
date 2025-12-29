@@ -1,0 +1,7 @@
+{
+  "name": "FloraTrack AI",
+  "description": "Professional plant and flower price tracking application with AI-powered tag scanning and data export capabilities.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
