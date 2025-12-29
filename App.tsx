@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Share2, Search, Database, BookOpen, 
-  Leaf, Flower2, Zap, Store, Tag, Trash2, Calendar, Edit2, XCircle, 
+  Leaf, Zap, Store, Tag, Trash2, Calendar, Edit2, XCircle, 
   MessageSquare, Eraser, History, Percent, Sparkles, Box, Soup, CheckCircle2
 } from 'lucide-react';
 import { Input } from './components/Input.tsx';
@@ -63,7 +63,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const initApp = async () => {
-      // Caricamento database senza richiedere la camera qui
       try {
         const excelData = await loadDataFromExcel();
         if (excelData) {

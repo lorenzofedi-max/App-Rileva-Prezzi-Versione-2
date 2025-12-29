@@ -26,7 +26,7 @@ export const VisionScanner: React.FC<VisionScannerProps> = ({ onClose, onDetecte
         if (videoRef.current) videoRef.current.srcObject = stream;
       } catch (err) {
         console.error("Camera error:", err);
-        alert("Impossibile accedere alla fotocamera. Controlla i permessi.");
+        alert("Impossibile accedere alla fotocamera. Controlla i permessi nelle impostazioni del browser.");
         onClose();
       }
     };
@@ -44,11 +44,11 @@ export const VisionScanner: React.FC<VisionScannerProps> = ({ onClose, onDetecte
 
       if (context && video.readyState === 4) {
         setStatus('analyzing');
-        // Ridotta dimensione frame per velocità analisi senza perdere EAN
+        // Risoluzione ottimale per OCR EAN e testo senza sovraccaricare il payload
         canvas.width = 960;
         canvas.height = 540;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const base64 = canvas.toDataURL('image/jpeg', 0.7);
+        const base64 = canvas.toDataURL('image/jpeg', 0.6);
 
         try {
           const result = await analyzePriceTagImage(base64, true);
@@ -58,7 +58,7 @@ export const VisionScanner: React.FC<VisionScannerProps> = ({ onClose, onDetecte
             triggerFlash();
             if ('vibrate' in navigator) navigator.vibrate([60, 40]);
           } else {
-            // Se non trova nulla, torna subito idle per il prossimo tentativo
+            // Se non trova dati validi, torna subito in ascolto
             setStatus('idle');
           }
         } catch (e) {
@@ -67,14 +67,14 @@ export const VisionScanner: React.FC<VisionScannerProps> = ({ onClose, onDetecte
       }
     };
 
-    // Intervallo ridotto per maggiore reattività
+    // Polling velocizzato a 1.2 secondi per una UX "real-time"
     const interval = setInterval(captureLoop, 1200);
     return () => clearInterval(interval);
   }, [status]);
 
   const triggerFlash = () => {
     setFlash(true);
-    setTimeout(() => setFlash(false), 150);
+    setTimeout(() => setFlash(false), 100);
   };
 
   const handleRetry = () => {
@@ -100,12 +100,6 @@ export const VisionScanner: React.FC<VisionScannerProps> = ({ onClose, onDetecte
             <div className="absolute -top-1 -right-1 w-12 h-12 border-t-8 border-r-8 rounded-tr-[2rem] border-brand-500"></div>
             <div className="absolute -bottom-1 -left-1 w-12 h-12 border-b-8 border-l-8 rounded-bl-[2rem] border-brand-500"></div>
             <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-8 border-r-8 rounded-br-[2rem] border-brand-500"></div>
-            
-            {status !== 'locked' && (
-               <div className="absolute inset-0 flex items-center justify-center opacity-10">
-                  <MoveDiagonal2 className="text-white" size={50} strokeWidth={1} />
-               </div>
-            )}
         </div>
 
         {lastResult && (
@@ -148,9 +142,9 @@ export const VisionScanner: React.FC<VisionScannerProps> = ({ onClose, onDetecte
         {status !== 'locked' && (
           <div className="absolute bottom-40 left-1/2 -translate-x-1/2 z-40 px-6 py-3 bg-black/70 backdrop-blur-xl rounded-2xl border border-white/20 flex items-center gap-3 shadow-2xl">
              {status === 'analyzing' ? (
-               <><Loader2 size={16} className="text-brand-400 animate-spin" /> <span className="text-[10px] text-white font-black uppercase tracking-widest">Lettura rapida...</span></>
+               <><Loader2 size={16} className="text-brand-400 animate-spin" /> <span className="text-[10px] text-white font-black uppercase tracking-widest">Analisi...</span></>
              ) : (
-               <><Camera size={16} className="text-brand-400" /> <span className="text-[10px] text-white font-black uppercase tracking-widest">Punta l'etichetta</span></>
+               <><Camera size={16} className="text-brand-400" /> <span className="text-[10px] text-white font-black uppercase tracking-widest">Inquadra etichetta</span></>
              )}
           </div>
         )}
@@ -163,7 +157,7 @@ export const VisionScanner: React.FC<VisionScannerProps> = ({ onClose, onDetecte
         <div className="text-center">
           <div className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse mx-auto mb-2 shadow-[0_0_10px_rgba(16,185,129,1)]"></div>
           <div className="text-white text-[9px] font-black uppercase tracking-[0.4em] opacity-50">
-             AI Scan active
+             Vision Mode Active
           </div>
         </div>
       </div>
