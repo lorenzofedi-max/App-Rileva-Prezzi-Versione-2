@@ -11,7 +11,6 @@ export const exportAndShareExcel = async (data: PriceRecord[], chain: string, st
   // 1. Preparazione dati per Excel
   const worksheetData = data.map(row => ({
     "Data": new Date(row.timestamp).toLocaleDateString("it-IT"),
-    "Ora": new Date(row.timestamp).toLocaleTimeString("it-IT", { hour: '2-digit', minute: '2-digit' }),
     "Catena": row.storeChain,
     "Negozio": row.storeName,
     "Tipologia": row.type,
@@ -31,19 +30,30 @@ export const exportAndShareExcel = async (data: PriceRecord[], chain: string, st
 
   // Imposta larghezza colonne minima per leggibilità
   const wscols = [
-    { wch: 12 }, { wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, 
-    { wch: 25 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 15 }, 
-    { wch: 15 }, { wch: 30 }
+    { wch: 12 }, // Data
+    { wch: 15 }, // Catena
+    { wch: 15 }, // Negozio
+    { wch: 10 }, // Tipologia
+    { wch: 25 }, // Articolo
+    { wch: 8 },  // N° Steli
+    { wch: 12 }, // Diam. Vaso
+    { wch: 10 }, // Prezzo
+    { wch: 20 }, // Fornitore
+    { wch: 16 }, // Codice EAN
+    { wch: 35 }  // Note
   ];
   worksheet['!cols'] = wscols;
 
-  // 3. Generazione Buffer del file
+  // 3. Generazione Buffer del file e Nome File dinamico
   const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   
-  const dateStr = new Date().toISOString().slice(0, 10);
-  const safeChain = chain.replace(/\s+/g, '_') || 'Retail';
-  const fileName = `FloraTrack_${safeChain}_${dateStr}.xlsx`;
+  // Generazione nome file: Rilevamento_Catena_Negozio_Data.xlsx
+  const now = new Date();
+  const dateStr = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
+  const safeChain = (chain || 'Retail').trim().replace(/\s+/g, '_');
+  const safeStore = (store || 'Generico').trim().replace(/\s+/g, '_');
+  const fileName = `Rilevamento_${safeChain}_${safeStore}_${dateStr}.xlsx`;
 
   // 4. Tentativo di Condivisione (WhatsApp, Mail, AirDrop)
   const file = new File([blob], fileName, { type: blob.type });
@@ -55,17 +65,17 @@ export const exportAndShareExcel = async (data: PriceRecord[], chain: string, st
         title: `Rilevamento Prezzi - ${chain}`,
         text: `In allegato il file Excel con i ${data.length} rilevamenti effettuati il ${dateStr}.`,
       });
-      return; // Condivisione riuscita
+      return; 
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
         console.error("Errore durante la condivisione:", error);
       } else {
-        return; // L'utente ha annullato la condivisione
+        return; 
       }
     }
   }
 
-  // 5. Fallback: Download classico se Share API non disponibile
+  // 5. Fallback: Download classico
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
