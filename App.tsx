@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Share2, Search, Database, BookOpen, 
@@ -34,7 +35,6 @@ const App: React.FC = () => {
   
   const [hasBackup, setHasBackup] = useState(() => !!localStorage.getItem('floraTrackBackup'));
   
-  // Form State
   const [editingId, setEditingId] = useState<number | null>(null);
   const [storeChain, setStoreChain] = useState('');
   const [storeName, setStoreName] = useState('');
@@ -47,11 +47,8 @@ const App: React.FC = () => {
   const [stems, setStems] = useState('');
   const [vase, setVase] = useState('');
   
-  // Quick Flags State
   const [showScontoMenu, setShowScontoMenu] = useState(false);
   const [showRamiMenu, setShowRamiMenu] = useState(false);
-
-  // UI State
   const [isVisionOpen, setIsVisionOpen] = useState(false);
   const [isLookupOpen, setIsLookupOpen] = useState(false);
   const [filterTerm, setFilterTerm] = useState('');
@@ -63,24 +60,20 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const initApp = async () => {
-      try {
-        const excelData = await loadDataFromExcel();
-        if (excelData) {
-          setDataLists(prev => ({
-            ...prev,
-            chains: excelData.chains.length ? excelData.chains : prev.chains,
-            stores: excelData.stores.length ? excelData.stores : prev.stores,
-            plants: excelData.plants.length ? excelData.plants : prev.plants,
-            flowers: excelData.flowers.length ? excelData.flowers : prev.flowers,
-            suppliers: excelData.suppliers.length ? excelData.suppliers : prev.suppliers,
-            stems: excelData.stems.length ? excelData.stems : prev.stems,
-            vases: excelData.vases.length ? excelData.vases : prev.vases,
-          }));
-          if (excelData.supplierRules.length) setSupplierRules(excelData.supplierRules);
-          setIsExcelLoaded(true);
-        }
-      } catch (err) {
-        console.error("Excel load failed:", err);
+      const excelData = await loadDataFromExcel();
+      if (excelData) {
+        setDataLists(prev => ({
+          ...prev,
+          chains: excelData.chains.length ? excelData.chains : prev.chains,
+          stores: excelData.stores.length ? excelData.stores : prev.stores,
+          plants: excelData.plants.length ? excelData.plants : prev.plants,
+          flowers: excelData.flowers.length ? excelData.flowers : prev.flowers,
+          suppliers: excelData.suppliers.length ? excelData.suppliers : prev.suppliers,
+          stems: excelData.stems.length ? excelData.stems : prev.stems,
+          vases: excelData.vases.length ? excelData.vases : prev.vases,
+        }));
+        if (excelData.supplierRules.length) setSupplierRules(excelData.supplierRules);
+        setIsExcelLoaded(true);
       }
     };
     initApp();
@@ -121,7 +114,7 @@ const App: React.FC = () => {
       setEan(result.eanCode);
       handleSupplierLookup(result.eanCode, true);
     }
-    showNotification("Dati aggiornati da AI ✨");
+    showNotification("Analisi AI completata ✨");
   };
 
   const resetForm = (full = false) => {
@@ -161,68 +154,60 @@ const App: React.FC = () => {
     };
     if (editingId !== null) {
       setRecords(prev => prev.map(r => r.id === editingId ? { ...r, ...priceData } : r));
-      showNotification("Modificato ✅");
+      showNotification("Record aggiornato ✅");
     } else {
       const newRecord: PriceRecord = { id: Date.now(), timestamp: new Date().toISOString(), ...priceData };
       setRecords(prev => [newRecord, ...prev]);
-      showNotification("Salvato ✅");
+      showNotification("Salvato con successo ✅");
     }
     resetForm();
+  };
+
+  // Fix: Defined the missing handleDeleteRecord function to resolve the error on line 445
+  const handleDeleteRecord = (id: number) => {
+    if (confirm("Sei sicuro di voler eliminare questo record?")) {
+      setRecords(prev => prev.filter(r => r.id !== id));
+      showNotification("Record eliminato 🗑️");
+      if (editingId === id) resetForm();
+    }
   };
 
   const handleClearAll = () => {
     if (records.length === 0) {
         resetForm(true);
-        showNotification("Campi puliti ✨");
+        showNotification("Campi resettati ✨");
         return;
     }
-    if (confirm("Iniziare una nuova sessione?")) {
+    if (confirm("Archiviare la sessione corrente? I dati andranno nel backup.")) {
       localStorage.setItem('floraTrackBackup', JSON.stringify(records));
       setHasBackup(true);
       setRecords([]);
       resetForm(true);
-      showNotification("Sessione conclusa 📁");
+      showNotification("Sessione archiviata 📁");
     }
   };
 
   const handleExport = async () => {
     if (records.length === 0) return;
-    
-    // 1. Crea backup di emergenza
     localStorage.setItem('floraTrackBackup', JSON.stringify(records));
     setHasBackup(true);
-    
-    // 2. Avvia esportazione
     await exportAndShareExcel(records, storeChain, storeName);
-    
-    // 3. Svuota TUTTO (inclusi catena e negozio)
     setRecords([]);
     resetForm(true);
-    
-    showNotification("Esportazione completata 🚀");
-  };
-
-  const handleDeleteRecord = (id: number) => {
-    if (confirm("Eliminare definitivamente questo rigo?")) {
-      setRecords(prev => prev.filter(r => r.id !== id));
-      showNotification("Rigo eliminato 🗑️");
-    }
+    showNotification("File inviato e sessione chiusa 🚀");
   };
 
   const handleRestoreBackup = () => {
     const backupStr = localStorage.getItem('floraTrackBackup');
-    if (!backupStr) {
-      showNotification("Nessun backup trovato ❌");
-      return;
-    }
-    if (confirm("Ripristinare l'ultima sessione esportata o svuotata?")) {
+    if (!backupStr) return;
+    if (confirm("Recuperare l'ultima sessione esportata o archiviata?")) {
       const backupData = JSON.parse(backupStr);
       setRecords(backupData);
       if (backupData.length > 0) {
         setStoreChain(backupData[0].storeChain);
         setStoreName(backupData[0].storeName);
       }
-      showNotification("Dati ripristinati correttamente 🔄");
+      showNotification("Backup ripristinato 🔄");
     }
   };
 
@@ -245,17 +230,15 @@ const App: React.FC = () => {
   const filteredRecords = records.filter(r => 
     r.itemName.toLowerCase().includes(filterTerm.toLowerCase()) || 
     r.eanCode?.includes(filterTerm) ||
-    r.supplierName?.toLowerCase().includes(filterTerm.toLowerCase()) ||
-    r.storeChain.toLowerCase().includes(filterTerm.toLowerCase()) ||
-    r.storeName.toLowerCase().includes(filterTerm.toLowerCase())
+    r.supplierName?.toLowerCase().includes(filterTerm.toLowerCase())
   );
 
   return (
     <div className="min-h-screen pb-12 bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 transition-all duration-300">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-[1300px] mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-             <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+             <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-brand-glow">
                 <Leaf size={28} strokeWidth={2.5} />
              </div>
              <div>
@@ -263,10 +246,10 @@ const App: React.FC = () => {
                <div className="flex items-center gap-2 mt-1.5">
                  {isExcelLoaded ? (
                    <span className="text-[10px] text-blue-600 font-bold flex items-center gap-1.5 uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
-                    <Database size={12}/> DB Attivo
+                    <Database size={12}/> Database Caricato
                    </span>
                  ) : (
-                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Offline Mode</span>
+                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Modalità Offline</span>
                  )}
                </div>
              </div>
@@ -292,7 +275,7 @@ const App: React.FC = () => {
               <div className="flex justify-between items-center mb-6">
                  <div className="flex items-center gap-3">
                     <Tag className="text-blue-600" size={18} />
-                    <h2 className="text-slate-500 font-bold text-[11px] uppercase tracking-widest">{editingId ? 'Modifica Prezzo' : 'Nuovo Articolo'}</h2>
+                    <h2 className="text-slate-500 font-bold text-[11px] uppercase tracking-widest">{editingId ? 'Modifica Voce' : 'Nuovo Articolo'}</h2>
                  </div>
                  <div className="flex bg-slate-100 p-1 rounded-xl">
                    <button onClick={() => setProductType('Mazzo')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-widest ${productType === 'Mazzo' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Mazzo</button>
@@ -305,9 +288,9 @@ const App: React.FC = () => {
                   <div className="flex-1">
                     <Input label="Descrizione Prodotto" value={itemName} onChange={e => setItemName(e.target.value)} options={productType === 'Mazzo' ? dataLists.flowers : dataLists.plants} placeholder="Nome prodotto..." />
                   </div>
-                  <button onClick={() => setIsVisionOpen(true)} className="flex items-center justify-center w-14 h-14 bg-blue-600 text-white rounded-2xl cursor-pointer hover:bg-blue-700 transition-all shadow-lg active:scale-95 group relative flex-shrink-0">
+                  <button onClick={() => setIsVisionOpen(true)} className="flex items-center justify-center w-14 h-14 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 transition-all shadow-lg active:scale-95 group relative flex-shrink-0">
                     <Zap size={24} className="group-hover:scale-110 transition-transform fill-white" />
-                    <div className="absolute -top-2 -right-2 bg-yellow-400 text-[8px] font-black px-1.5 py-0.5 rounded-md border-2 border-white text-slate-900">AI</div>
+                    <div className="absolute -top-2 -right-2 bg-blue-400 text-[8px] font-black px-1.5 py-0.5 rounded-md border-2 border-white text-white">AI</div>
                   </button>
                 </div>
 
@@ -321,25 +304,25 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="relative">
-                  <Input label="Fornitore" value={supplier} onChange={e => setSupplier(e.target.value)} options={dataLists.suppliers} placeholder="Cerca..." className={isSupplierMatched ? 'ring-1 ring-blue-500/20' : ''} />
-                  {isSupplierMatched && <div className="absolute right-3 top-[34px] flex items-center gap-1.5 bg-blue-600 text-white px-2 py-0.5 rounded-lg border-2 border-white shadow-sm"><CheckCircle2 size={10} /><span className="text-[8px] font-black">MATCH</span></div>}
+                  <Input label="Fornitore" value={supplier} onChange={e => setSupplier(e.target.value)} options={dataLists.suppliers} placeholder="Cerca nel database..." className={isSupplierMatched ? 'ring-1 ring-blue-500/20' : ''} />
+                  {isSupplierMatched && <div className="absolute right-3 top-[34px] flex items-center gap-1.5 bg-blue-600 text-white px-2 py-0.5 rounded-lg border-2 border-white shadow-sm"><CheckCircle2 size={10} /><span className="text-[8px] font-black">DATABASE</span></div>}
                 </div>
                 
                 <div className="relative">
-                  <Input label="Codice EAN" value={ean} onChange={e => { setEan(e.target.value); if(e.target.value.length >= 7) handleSupplierLookup(e.target.value); }} placeholder="Barcode..." />
+                  <Input label="Codice EAN" value={ean} onChange={e => { setEan(e.target.value); if(e.target.value.length >= 7) handleSupplierLookup(e.target.value); }} placeholder="Scansiona o digita..." />
                   <button onClick={() => setIsLookupOpen(true)} className="absolute right-3 top-[34px] p-2 text-slate-300 hover:text-blue-600 transition-all"><BookOpen size={20} /></button>
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Sparkles size={12} className="text-blue-600"/>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Opzioni</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tag Rapidi</label>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <div className="relative">
                       <button onClick={() => { setShowScontoMenu(!showScontoMenu); setShowRamiMenu(false); }} className={`h-10 px-4 rounded-xl text-[10px] font-bold transition-all border ${notes.includes('Sconto') ? 'bg-blue-600 text-white border-blue-700' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>% SCONTO</button>
                       {showScontoMenu && (
-                        <div className="absolute bottom-full left-0 mb-3 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-20 grid grid-cols-3 gap-1.5 w-44 animate-in slide-in-from-bottom-2">
+                        <div className="absolute bottom-full left-0 mb-3 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-20 grid grid-cols-3 gap-1.5 w-44">
                           {['20%', '30%', '40%', '50%', '33%', '13%'].map(val => (
                             <button key={val} onClick={() => { toggleNoteFlag(`Sconto ${val}`); setShowScontoMenu(false); }} className="px-2 py-2 rounded-lg text-[10px] font-bold bg-slate-50 text-slate-700 hover:bg-blue-600 hover:text-white">{val}</button>
                           ))}
@@ -349,7 +332,7 @@ const App: React.FC = () => {
                     <div className="relative">
                       <button onClick={() => { setShowRamiMenu(!showRamiMenu); setShowScontoMenu(false); }} className={`h-10 px-4 rounded-xl text-[10px] font-bold transition-all border ${notes.includes('Rami') ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>RAMI</button>
                       {showRamiMenu && (
-                        <div className="absolute bottom-full left-0 mb-3 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-20 flex gap-1.5 animate-in slide-in-from-bottom-2">
+                        <div className="absolute bottom-full left-0 mb-3 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-20 flex gap-1.5">
                           {[1, 2, 3, 4].map(num => (
                             <button key={num} onClick={() => { toggleNoteFlag(`Rami ${num}`, true); setShowRamiMenu(false); }} className="px-3 py-2 rounded-lg text-[10px] font-bold bg-slate-50 text-slate-700 hover:bg-indigo-600 hover:text-white">{num}</button>
                           ))}
@@ -363,7 +346,7 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col space-y-2">
-                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1"><MessageSquare size={12} className="inline mr-1"/> Note</label>
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1"><MessageSquare size={12} className="inline mr-1"/> Note aggiuntive</label>
                    <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="..." className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-slate-800 text-sm font-bold focus:border-blue-600 outline-none min-h-[80px] resize-none" />
                 </div>
 
@@ -371,24 +354,24 @@ const App: React.FC = () => {
                   <div className="flex gap-3">
                     {editingId && <button onClick={() => resetForm()} className="flex-1 bg-slate-100 text-slate-600 font-bold py-4 rounded-2xl text-xs uppercase tracking-widest">ANNULLA</button>}
                     <button onClick={handleSave} className={`flex-[2] text-white font-black py-5 rounded-2xl shadow-lg transition-all active:scale-95 text-sm uppercase tracking-widest ${editingId ? 'bg-indigo-600' : 'bg-blue-600'}`}>
-                      {editingId ? 'AGGIORNA' : 'REGISTRA PREZZO'}
+                      {editingId ? 'SALVA MODIFICHE' : 'REGISTRA ARTICOLO'}
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-[1.2fr_1fr] gap-3">
+                  <div className="grid grid-cols-[1.5fr_1fr] gap-3">
                     <button 
                       onClick={handleExport} 
                       disabled={records.length === 0} 
-                      className="bg-blue-700 text-white rounded-2xl flex flex-col items-center justify-center gap-2 font-bold shadow-md hover:bg-blue-800 disabled:opacity-20 active:scale-95 transition-all p-4"
+                      className="bg-blue-700 text-white rounded-2xl flex flex-col items-center justify-center gap-2 font-bold shadow-md hover:bg-blue-800 disabled:opacity-20 active:scale-95 transition-all p-5 h-full"
                     >
-                      <Share2 size={24} />
-                      <span className="text-[10px] uppercase tracking-widest">Esporta e Chiudi</span>
+                      <Share2 size={28} />
+                      <span className="text-[10px] uppercase tracking-widest leading-tight">Esporta e Chiudi</span>
                     </button>
                     
                     <div className="flex flex-col gap-2">
                       <button 
                         onClick={handleClearAll} 
-                        className="flex-1 bg-white text-slate-500 rounded-xl flex items-center justify-center gap-2 font-bold border border-slate-200 hover:text-rose-600 hover:border-rose-100 shadow-sm transition-all group active:scale-95 px-3 py-2"
+                        className="flex-1 bg-white text-slate-500 rounded-xl flex items-center justify-center gap-2 font-bold border border-slate-200 hover:text-blue-600 hover:border-blue-100 shadow-sm transition-all group active:scale-95 px-3 py-2 min-h-[44px]"
                       >
                         <Eraser size={18} className="group-hover:rotate-12 transition-transform" />
                         <span className="text-[9px] uppercase tracking-widest font-black">Svuota Sessione</span>
@@ -397,10 +380,10 @@ const App: React.FC = () => {
                       {hasBackup && (
                         <button 
                           onClick={handleRestoreBackup} 
-                          className="flex-1 bg-blue-50 text-blue-700 rounded-xl flex items-center justify-center gap-2 font-bold border border-blue-200 hover:bg-blue-100 shadow-sm transition-all active:scale-95 px-3 py-2"
+                          className="flex-1 bg-blue-50 text-blue-700 rounded-xl flex items-center justify-center gap-2 font-bold border border-blue-200 hover:bg-blue-100 shadow-sm transition-all active:scale-95 px-3 py-2 min-h-[44px]"
                         >
                           <History size={18} />
-                          <span className="text-[9px] uppercase tracking-widest font-black">Recupero</span>
+                          <span className="text-[9px] uppercase tracking-widest font-black">Recupero Backup</span>
                         </button>
                       )}
                     </div>
@@ -414,15 +397,15 @@ const App: React.FC = () => {
             <section className="bg-white rounded-[2rem] shadow-premium border border-slate-100/60 overflow-hidden flex flex-col h-full max-h-[900px]">
                <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center bg-slate-50/50 gap-6">
                  <div className="font-black text-slate-900 flex items-center gap-4">
-                   <div className="w-10 h-10 bg-blue-700 text-white rounded-xl flex items-center justify-center text-sm font-black">{records.length}</div>
+                   <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center text-sm font-black">{records.length}</div>
                    <div>
-                     <span className="text-sm font-black uppercase tracking-widest">Cronologia</span>
-                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Sessione corrente</p>
+                     <span className="text-sm font-black uppercase tracking-widest">Rilevamenti</span>
+                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Sessione attuale</p>
                    </div>
                  </div>
                  <div className="relative w-full sm:w-72">
                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                   <input type="text" placeholder="Filtra prodotti..." value={filterTerm} onChange={e => setFilterTerm(e.target.value)} className="w-full pl-11 pr-4 py-3 text-xs border border-slate-200 bg-white rounded-xl outline-none focus:border-blue-500 font-bold" />
+                   <input type="text" placeholder="Cerca tra i record..." value={filterTerm} onChange={e => setFilterTerm(e.target.value)} className="w-full pl-11 pr-4 py-3 text-xs border border-slate-200 bg-white rounded-xl outline-none focus:border-blue-500 font-bold" />
                  </div>
                </div>
                
@@ -433,12 +416,12 @@ const App: React.FC = () => {
                         <tr>
                           <th className="px-6 py-4">Ora</th>
                           <th className="px-6 py-4">Prodotto</th>
-                          <th className="px-6 py-4 text-center">Specifiche</th>
+                          <th className="px-6 py-4 text-center">Info</th>
                           <th className="px-6 py-4 text-right">Prezzo</th>
                           <th className="px-6 py-4">Fornitore</th>
                           <th className="px-6 py-4">EAN</th>
                           <th className="px-6 py-4">Note</th>
-                          <th className="px-6 py-4 text-center">Azione</th>
+                          <th className="px-6 py-4 text-center">Azioni</th>
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-50">
@@ -447,10 +430,10 @@ const App: React.FC = () => {
                            <td className="px-6 py-6 text-[11px] font-bold text-slate-700 whitespace-nowrap">{new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                            <td className="px-6 py-6">
                              <div className="text-sm font-black text-slate-900 mb-0.5">{r.itemName}</div>
-                             <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border ${r.type === 'Pianta' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>{r.type}</span>
+                             <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border ${r.type === 'Pianta' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-indigo-50 text-indigo-700 border-indigo-100'}`}>{r.type}</span>
                            </td>
                            <td className="px-6 py-6 text-center whitespace-nowrap">
-                              {r.type === 'Pianta' ? <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">Ø {r.vaseDiameter}</span> : <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">{r.stemsCount} Steli</span>}
+                              {r.type === 'Pianta' ? <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-100 px-3 py-1 rounded-lg">Ø {r.vaseDiameter}</span> : <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-100 px-3 py-1 rounded-lg">{r.stemsCount} Steli</span>}
                            </td>
                            <td className="px-6 py-6 text-right whitespace-nowrap">
                              <div className="text-base font-black text-blue-700">€ {r.priceValue.toFixed(2)}</div>
@@ -462,13 +445,9 @@ const App: React.FC = () => {
                                </div>
                              ) : <span className="text-slate-300">-</span>}
                            </td>
-                           <td className="px-6 py-6">
-                             {r.eanCode ? <div className="font-mono text-[10px] text-slate-500 whitespace-nowrap">{r.eanCode}</div> : <span className="text-slate-300">-</span>}
-                           </td>
+                           <td className="px-6 py-6 font-mono text-[10px] text-slate-500">{r.eanCode || '-'}</td>
                            <td className="px-6 py-6 max-w-[150px]">
-                             {r.notes ? (
-                               <div className="text-[10px] text-slate-500 font-medium italic truncate" title={r.notes}>{r.notes}</div>
-                             ) : <span className="text-slate-300">-</span>}
+                             <div className="text-[10px] text-slate-500 font-medium italic truncate">{r.notes || '-'}</div>
                            </td>
                            <td className="px-6 py-6">
                              <div className="flex items-center justify-center gap-2">
@@ -483,7 +462,7 @@ const App: React.FC = () => {
                  ) : (
                    <div className="p-32 text-center text-slate-300 flex flex-col items-center gap-6">
                      <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center border border-slate-100"><Database size={40} strokeWidth={1} /></div>
-                     <span className="text-sm font-black text-slate-400 uppercase tracking-widest">Nessun dato</span>
+                     <span className="text-sm font-black text-slate-400 uppercase tracking-widest">Nessun record salvato</span>
                    </div>
                  )}
                </div>

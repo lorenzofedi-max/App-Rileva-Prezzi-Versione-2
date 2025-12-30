@@ -14,11 +14,10 @@ export interface AppDataLists {
 
 export const loadDataFromExcel = async (): Promise<AppDataLists | null> => {
   try {
-    // Cerchiamo il file database.xlsx nella root
     const response = await fetch('./database.xlsx', { cache: 'no-cache' });
     
     if (!response.ok) {
-      console.warn('File database.xlsx non trovato sul server. Caricamento defaults...');
+      console.warn('File database.xlsx non trovato. Utilizzo valori di default.');
       return null;
     }
 
@@ -39,11 +38,10 @@ export const loadDataFromExcel = async (): Promise<AppDataLists | null> => {
         .filter(item => item !== undefined && item !== null && String(item).trim() !== '')
         .map(item => String(item).trim());
       
-      // Rimuove duplicati e ordina alfabeticamente/numericamente
       return [...new Set(list)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     };
 
-    // Estrae le regole Fornitore (RadiceEAN -> NomeFornitore)
+    // Mappatura regole basata sulla colonna NomeFornitore
     const supplierRules: SupplierRule[] = jsonData
       .filter(row => row['RadiceEAN'] && row['NomeFornitore'])
       .map(row => ({
@@ -51,24 +49,22 @@ export const loadDataFromExcel = async (): Promise<AppDataLists | null> => {
         supplier: String(row['NomeFornitore']).trim()
       }));
 
-    // Rende uniche le regole per radice
     const uniqueRulesMap = new Map();
     supplierRules.forEach(rule => uniqueRulesMap.set(rule.root, rule));
-    const uniqueRules = Array.from(uniqueRulesMap.values());
 
     return {
       chains: extractColumn('Catene'),
       stores: extractColumn('Negozi'),
       plants: extractColumn('Piante'),
       flowers: extractColumn('Fiori'),
-      suppliers: extractColumn('Fornitori'),
+      suppliers: extractColumn('NomeFornitore'), // Singola colonna aggiornata
       stems: extractColumn('Steli'),
       vases: extractColumn('Vasi'),
-      supplierRules: uniqueRules
+      supplierRules: Array.from(uniqueRulesMap.values())
     };
 
   } catch (error) {
-    console.error("Errore critico durante il caricamento dell'Excel:", error);
+    console.error("Errore nel caricamento del database:", error);
     return null;
   }
 };
