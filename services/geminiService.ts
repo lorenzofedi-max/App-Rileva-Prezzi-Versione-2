@@ -2,10 +2,15 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { AiAnalysisResult } from "../types.ts";
 
 /**
- * Analizza l'immagine di un'etichetta prezzo.
- * Ottimizzato per: Velocità di risposta e Precisione OCR.
+ * Analizza l'immagine dell'etichetta.
+ * Ottimizzato per: Velocità, Precisione Nome, EAN e Prezzo.
  */
 export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnalysisResult> => {
+  if (!process.env.API_KEY) {
+    console.error("API KEY Mancante");
+    return {};
+  }
+
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
@@ -21,23 +26,18 @@ export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnaly
             }
           },
           {
-            text: `ESTRAZIONE DATI ETICHETTA BOTANICA.
-            Leggi l'immagine e restituisci SOLO i dati richiesti in formato JSON.
+            text: `ESTRAI:
+            1. itemName: Nome pianta/fiore.
+            2. price: Solo numero finale (o 0 se assente).
+            3. eanCode: Numero 8/13 cifre (o "" se assente).
             
-            1. itemName: Nome della pianta/fiore. Sii conciso.
-            2. eanCode: Codice numerico a 8 o 13 cifre. Se incerto o assente, lascia "".
-            3. price: Prezzo finale numerico. Se NON presente o illeggibile, restituisci 0.
-
-            REGOLE D'ORO:
-            - NON inventare numeri. 
-            - Ignora prezzi al KG, ignora percentuali di sconto isolate.
-            - Focus massimo su nitidezza EAN.`
+            RISPONDI SOLO IN JSON.`
           }
         ]
       },
       config: {
-        // 2048 è il bilanciamento perfetto tra velocità e analisi accurata dei dettagli
-        thinkingConfig: { thinkingBudget: 2048 },
+        // Budget ridotto per velocità istantanea mantenendo l'accuratezza OCR
+        thinkingConfig: { thinkingBudget: 1024 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -46,25 +46,20 @@ export const analyzePriceTagImage = async (base64Image: string): Promise<AiAnaly
             price: { type: Type.NUMBER },
             eanCode: { type: Type.STRING }
           },
-          required: ["itemName", "price"]
+          required: ["itemName"]
         }
       }
     });
 
-    const text = response.text;
-    if (!text) return {};
-
-    const result = JSON.parse(text) as AiAnalysisResult;
+    const result = JSON.parse(response.text || '{}');
     
-    // Pulizia rigorosa EAN post-scansione
     if (result.eanCode) {
       result.eanCode = result.eanCode.replace(/\D/g, '');
-      if (result.eanCode.length < 7) result.eanCode = ""; // Scarta codici troppo brevi/errati
     }
-
+    
     return result;
   } catch (error) {
-    console.error("Errore analisi AI ottimizzata:", error);
+    console.error("Errore Gemini:", error);
     return {};
   }
 };

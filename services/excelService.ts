@@ -14,34 +14,40 @@ export interface AppDataLists {
 
 export const loadDataFromExcel = async (): Promise<AppDataLists | null> => {
   try {
-    const response = await fetch('./database.xlsx', { cache: 'no-cache' });
+    // Cache-busting per assicurarci di caricare sempre l'ultima versione del database
+    const timestamp = Date.now();
+    const response = await fetch(`./database.xlsx?t=${timestamp}`);
     
     if (!response.ok) {
-      console.warn('File database.xlsx non trovato. Utilizzo valori di default.');
+      console.warn(`Database Excel non trovato (Status: ${response.status}). Verranno usati i dati predefiniti.`);
       return null;
     }
 
     const arrayBuffer = await response.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
     
-    if (!workbook.SheetNames.length) return null;
+    if (!workbook.SheetNames.length) {
+      console.error('File Excel senza fogli validi.');
+      return null;
+    }
 
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
 
-    if (!jsonData.length) return null;
+    if (!jsonData.length) {
+      console.warn('Database Excel vuoto.');
+      return null;
+    }
 
     const extractColumn = (key: string): string[] => {
-      const list = jsonData
+      return [...new Set(jsonData
         .map(row => row[key])
-        .filter(item => item !== undefined && item !== null && String(item).trim() !== '')
-        .map(item => String(item).trim());
-      
-      return [...new Set(list)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        .filter(val => val !== undefined && val !== null && String(val).trim() !== '')
+        .map(val => String(val).trim())
+      )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     };
 
-    // Mappatura regole basata sulla colonna NomeFornitore
+    // Estrazione regole EAN -> Fornitore
     const supplierRules: SupplierRule[] = jsonData
       .filter(row => row['RadiceEAN'] && row['NomeFornitore'])
       .map(row => ({
@@ -49,22 +55,26 @@ export const loadDataFromExcel = async (): Promise<AppDataLists | null> => {
         supplier: String(row['NomeFornitore']).trim()
       }));
 
-    const uniqueRulesMap = new Map();
-    supplierRules.forEach(rule => uniqueRulesMap.set(rule.root, rule));
+    // Rimozione duplicati radice
+    const uniqueRules = Array.from(
+      new Map(supplierRules.map(item => [item.root, item])).values()
+    );
+
+    console.log(`Database Excel caricato: ${jsonData.length} righe, ${uniqueRules.length} regole EAN.`);
 
     return {
       chains: extractColumn('Catene'),
       stores: extractColumn('Negozi'),
       plants: extractColumn('Piante'),
       flowers: extractColumn('Fiori'),
-      suppliers: extractColumn('NomeFornitore'), // Singola colonna aggiornata
+      suppliers: extractColumn('NomeFornitore'),
       stems: extractColumn('Steli'),
       vases: extractColumn('Vasi'),
-      supplierRules: Array.from(uniqueRulesMap.values())
+      supplierRules: uniqueRules
     };
 
   } catch (error) {
-    console.error("Errore nel caricamento del database:", error);
+    console.error("Errore critico excelService:", error);
     return null;
   }
 };
